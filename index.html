@@ -131,7 +131,7 @@ button, .tab, .back-btn, .tbtn { font-weight: 700; }
   <aside class="tips-card" id="tips-card"><div class="tips-hd" id="tips-heading">Tips</div><div id="tips-content"></div></aside>
   <section class="topic-card" id="main-card"><div class="t-badge" id="item-badge"></div><div class="t-title" id="item-title"></div><ul class="t-points" id="item-points"></ul><div class="reading-text hidden" id="reading-text"></div><div class="phase-pill" id="phase-pill"></div>
    <div class="audio-panel hidden" id="text-audio-panel"><div class="audio-title">Listen to the text</div><audio id="text-audio" controls preload="none"></audio><div class="audio-controls"><label class="speed-label" for="speed-select">Playback speed</label><select class="speed-select" id="speed-select" onchange="changeAudioSpeed()"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option></select></div></div>
-   <div class="record-box hidden" id="record-box"><h3>Your recording</h3><div class="record-status" id="record-status">Your recording will appear here after you finish.</div><audio id="recorded-audio" controls class="hidden"></audio><a id="download-recording" class="download-link hidden" download="reading-answer.webm">Download recording</a></div>
+   <div class="record-box hidden" id="record-box"><h3>Your recording</h3><div class="record-status" id="record-status">Your recording will appear here after you finish.</div><audio id="recorded-audio" controls class="hidden"></audio><a id="download-recording" class="download-link hidden" download="reading-answer.mp3">Download recording</a></div>
   </section>
   <aside class="timer-card"><div class="tmr-lbl" id="tmr-label">Preparation time</div><div class="tmr-ring"><svg width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="41" fill="none" stroke="#f0d5b0" stroke-width="7"/><circle id="timer-ring" cx="50" cy="50" r="41" fill="none" stroke="#c8955a" stroke-width="7" stroke-dasharray="258" stroke-dashoffset="258" stroke-linecap="round" transform="rotate(-90 50 50)"/></svg><div class="tmr-txt"><div class="tmr-num" id="timer-number">01:30</div><div class="tmr-sub" id="timer-sub">minutes</div></div></div>
    <button class="tbtn" id="prep-btn" onclick="startPreparation()">Start preparation (1:30)</button><button class="tbtn go hidden" id="speak-btn" onclick="startSpeaking()">Start speaking (2:00)</button><button class="tbtn go hidden" id="record-btn" onclick="startRecording()">Start recording</button><button class="tbtn fin hidden" id="finish-btn" onclick="finishSpeaking(true)">Finish answer</button><div class="record-status" id="mic-note"></div>
@@ -141,6 +141,7 @@ button, .tab, .back-btn, .tbtn { font-weight: 700; }
  <div class="action-row"><button class="back-btn" onclick="backToMenu()">Back to menu</button><button class="tbtn" style="margin:0" onclick="nextItem()" id="next-btn">Next topic →</button></div>
 </div>
 </main><footer class="footer"><div class="footer-text">Сайт создан ВК сообществом: Агафонова Людмила | Блог учителя английского</div></footer></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 <script>
 const topics=[
 {id:1,t:"Your school",pts:["What your typical school day is like","What your favourite subject is, and why","What you like most about your school","What your attitude to your school life is"]},
@@ -197,7 +198,60 @@ function finishSpeaking(manual){if(phase==='recording'){stopRecording(false);ret
 async function startRecording(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){$('mic-note').textContent='Audio recording is not supported in this browser. Please use an updated browser over HTTPS.';return;}try{recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});recordedChunks=[];const options=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?{mimeType:'audio/webm;codecs=opus'}:{};mediaRecorder=new MediaRecorder(recordingStream,options);mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recordedChunks.push(e.data)};mediaRecorder.onstop=saveRecording;mediaRecorder.start();document.body.classList.add('answer-mode-active');$('detail-view').classList.add('answer-mode');phase='recording';recordingStartedAt=Date.now();timeLeft=120;totalTime=120;$('record-btn').classList.add('hidden');$('speak-btn').classList.add('hidden');$('finish-btn').classList.remove('hidden');$('tmr-label').textContent=section==='speaking'?'Speaking · recording':'Recording · reading aloud';$('mic-note').textContent='Recording in progress. The recording stops automatically after 2 minutes.';$('phase-pill').textContent='Recording';$('phase-pill').className='phase-pill ph-speak';$('phase-pill').style.display='inline-flex';renderTimer();timerInterval=setInterval(tickRecording,1000);recordingStopTimeout=setTimeout(()=>stopRecording(true),120000);}catch(err){$('mic-note').textContent='Microphone access was not granted. Please allow microphone access and try again.';phase='ready-to-record';}}
 function tickRecording(){const elapsed=Math.floor((Date.now()-recordingStartedAt)/1000);timeLeft=Math.max(0,120-elapsed);renderTimer();if(timeLeft<=0)stopRecording(true);}
 function stopRecording(auto){if(phase!=='recording'||!mediaRecorder)return;clearTimer();if(recordingStopTimeout){clearTimeout(recordingStopTimeout);recordingStopTimeout=null;}phase='finished';if(mediaRecorder.state!=='inactive')mediaRecorder.stop();if(recordingStream){recordingStream.getTracks().forEach(t=>t.stop());recordingStream=null;}$('finish-btn').classList.add('hidden');$('phase-pill').style.display='none';$('tmr-label').textContent='Recording complete';$('timer-number').textContent='00:00';$('timer-sub').textContent='finished';$('mic-note').textContent=auto?'The 2-minute recording time is over.':'Recording stopped.';$('result-box').classList.add('show');$('result-title').textContent='Recording complete';$('result-message').textContent=section==='speaking'?'You can listen to your monologue or download the recording below.':'You can listen to your answer or download the audio file below.';}
-function saveRecording(){const type=recordedChunks[0]?.type||'audio/webm';const blob=new Blob(recordedChunks,{type});if(recordingUrl)URL.revokeObjectURL(recordingUrl);recordingUrl=URL.createObjectURL(blob);$('recorded-audio').src=recordingUrl;$('recorded-audio').classList.remove('hidden');const link=$('download-recording');link.href=recordingUrl;link.download=`${section==='speaking'?'speaking-answer':'reading-answer'}-${String(currentIndex+1).padStart(2,'0')}.webm`;link.classList.remove('hidden');$('record-status').textContent='Your answer is ready. Listen to it or download the recording.';}
+async function saveRecording(){
+ const status=$('record-status');
+ const audioPlayer=$('recorded-audio');
+ const link=$('download-recording');
+ status.textContent='Converting your recording to MP3...';
+ try{
+  if(!window.lamejs||!window.lamejs.Mp3Encoder)throw new Error('MP3 encoder library did not load. Please check your internet connection and reload the page.');
+  if(!recordedChunks.length)throw new Error('No audio data was recorded.');
+  const sourceBlob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||'audio/webm'});
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)throw new Error('Audio processing is not supported in this browser.');
+  const audioContext=new AudioContextClass();
+  let mp3Blob;
+  try{
+   const arrayBuffer=await sourceBlob.arrayBuffer();
+   const audioBuffer=await audioContext.decodeAudioData(arrayBuffer);
+   const sampleRate=audioBuffer.sampleRate;
+   if(![8000,11025,12000,16000,22050,24000,32000,44100,48000].includes(sampleRate))throw new Error('Unsupported audio sample rate: '+sampleRate);
+   const encoder=new lamejs.Mp3Encoder(1,sampleRate,128);
+   const channelCount=audioBuffer.numberOfChannels;
+   const left=audioBuffer.getChannelData(0);
+   const right=channelCount>1?audioBuffer.getChannelData(1):null;
+   const blockSize=1152;
+   const mp3Parts=[];
+   for(let offset=0;offset<left.length;offset+=blockSize){
+    const length=Math.min(blockSize,left.length-offset);
+    const samples=new Int16Array(length);
+    for(let i=0;i<length;i++){
+     let value=right?(left[offset+i]+right[offset+i])/2:left[offset+i];
+     value=Math.max(-1,Math.min(1,value));
+     samples[i]=value<0?value*32768:value*32767;
+    }
+    const encoded=encoder.encodeBuffer(samples);
+    if(encoded.length)mp3Parts.push(new Uint8Array(encoded));
+   }
+   const finalPart=encoder.flush();
+   if(finalPart.length)mp3Parts.push(new Uint8Array(finalPart));
+   mp3Blob=new Blob(mp3Parts,{type:'audio/mpeg'});
+  }finally{
+   await audioContext.close();
+  }
+  if(recordingUrl)URL.revokeObjectURL(recordingUrl);
+  recordingUrl=URL.createObjectURL(mp3Blob);
+  audioPlayer.src=recordingUrl;
+  audioPlayer.classList.remove('hidden');
+  link.href=recordingUrl;
+  link.download=`${section==='speaking'?'speaking-answer':'reading-answer'}-${String(currentIndex+1).padStart(2,'0')}.mp3`;
+  link.classList.remove('hidden');
+  status.textContent='Your MP3 answer is ready. Listen to it or download the recording.';
+ }catch(error){
+  console.error('MP3 conversion error:',error);
+  status.textContent='Could not convert the recording to MP3. Please check your internet connection and try again.';
+ }
+}
 function stopAllMedia(){clearTimer();if(recordingStopTimeout){clearTimeout(recordingStopTimeout);recordingStopTimeout=null;}if(mediaRecorder&&mediaRecorder.state!=='inactive'){try{mediaRecorder.stop()}catch(e){}}if(recordingStream){recordingStream.getTracks().forEach(t=>t.stop());recordingStream=null;}const a=$('text-audio');if(a){a.pause();a.currentTime=0;}if(recordingUrl){URL.revokeObjectURL(recordingUrl);recordingUrl=null;}mediaRecorder=null;phase='idle';}
 renderTiles();
 </script></body></html>
